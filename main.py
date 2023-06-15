@@ -5,12 +5,14 @@ import numpy as np
 
 pose_graph = PoseGraph()
 
-def data_available_callback(state,t):
+def data_available_callback(state,z,t):
     # Process the updated state here
-    print("New data available:")
-    print("State:", state)
+    #print("New data available:")
+    #print("State:", state)
     pose_graph.add_data_point(state[0],state[1],state[2])
-    pose_graph.plot_live_graph()
+    pose_graph.add_measurement_point(z[0],z[1],z[2])
+
+    #pose_graph.plot_live_graph()
     
 
 # Create an instance of the DataProcessor
@@ -32,3 +34,4 @@ bag_reader.register_callback('/ov9281_back/visual_odometry/transformed/odom', da
 
 # Start reading the bag file
 bag_reader.start_reading()
+pose_graph.final_plot()
