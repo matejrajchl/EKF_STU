@@ -13,13 +13,13 @@ class DataProcessor:
         self.last_update_time = None  # Timestamp of the last update step
 
         # Specify Noise Sigmas
-        self.N_g = np.array([1,1,1])*1 # for gyroscope
-        self.N_a = np.array([1,1,1])*1 # for accelerometer
-        self.N_bias_g = np.array([1,1,1])*10  # for gyro bias
-        self.N_bias_a = np.array([1,1,1])*10  # for accelerometer bias
+        self.N_g = np.array([1,1,1])*1e-8 # for gyroscope
+        self.N_a = np.array([1,1,1])*1e-8 # for accelerometer
+        self.N_bias_g = np.array([1,1,1])*1e-8  # for gyro bias
+        self.N_bias_a = np.array([1,1,1])*1e-8  # for accelerometer bias
         
         self.Q_t = np.diag(np.concatenate((self.N_g, self.N_a, self.N_bias_g, self.N_bias_a))) # Process noise
-        self.R_t = np.diag(np.concatenate((np.ones(3) * 1e-3, np.ones(3) * 1e-3))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
+        self.R_t = np.diag(np.concatenate((np.ones(3) * 1, np.ones(3) * 1))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
 
         self.sigma_t_1 = np.diag(np.concatenate((np.zeros(3), self.N_g, self.N_a, self.N_bias_g, self.N_bias_a)))        # Define symbolic variables
 
@@ -42,7 +42,7 @@ class DataProcessor:
         # Define process model
         self.process = Matrix([Matrix(self.X[6:9]),
                                Ginv * (Matrix(self.U[0:3]) - Matrix(self.X[9:12]) - Matrix(self.N[0:3])),
-                               Matrix([0, 0, 9.81]) + self.R * (Matrix(self.U[3:6]) - Matrix(self.X[12:15]) - Matrix(self.N[3:6])),
+                               Matrix([0, 0, 10]) + self.R * (Matrix(self.U[3:6]) - Matrix(self.X[12:15]) - Matrix(self.N[3:6])),
                                Matrix(self.N[6:9]),
                                Matrix(self.N[9:12])])
 
@@ -97,10 +97,12 @@ class DataProcessor:
         F_t = np.eye(len(self.state)) + self.A_fn(*self.input_data)*dt
         V_t = self.U_t_fn(*self.input_data)*dt
         self.state_pred = self.state  + self.process_fn(*self.input_data)*dt   # Add process noise?
-        self.sigma_bar_t = F_t * self.sigma_t_1 * F_t.T + np.dot(np.dot(V_t,self.Q_t), V_t.T) # Must use np.dot to multiply non square matrices
+        self.sigma_bar_t = np.dot(np.dot(F_t,self.sigma_t_1),F_t.T) + np.dot(np.dot(V_t,self.Q_t), V_t.T) # Must use np.dot to multiply non square matrices
         self.updated_state_ready = True  # Set the flag to indicate that the updated state is ready
         self.last_update_time = t  # Update the timestamp of the last update step
-
+        
+        self.state = self.state_pred
+        self.sigma_t_1 = self.sigma_bar_t
 
     def measurement_step(self, msg, t):
         if not self.updated_state_ready:
@@ -131,7 +133,7 @@ class DataProcessor:
             self.updated_state_ready = False  # Reset the flag
 
             if self.data_available_callback is not None:
-                self.data_available_callback(self.state, t)  # Notify the callback that new data is available with the timestamp
+                self.data_available_callback(self.state, z, t)  # Notify the callback that new data is available with the timestamp
         else:
             print("Too late update:")
             print(time_elapsed)
