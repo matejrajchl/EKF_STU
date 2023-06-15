@@ -9,15 +9,47 @@ class PoseGraph:
         self.x_data = []
         self.y_data = []
         self.z_data = []
+
+        self.x_data_z = []
+        self.y_data_z = []
+        self.z_data_z = []
+
         self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(8, 10))
         self.line1, = self.ax1.plot([], [], 'b-')
-        self.line2, = self.ax2.plot([], [], 'g-')
-        self.line3, = self.ax3.plot([], [], 'r-')
+        self.line1z, = self.ax1.plot([], [], 'r--')
+        self.line2, = self.ax2.plot([], [], 'b-')
+        self.line2z, = self.ax2.plot([], [], 'r--')
+        self.line3, = self.ax3.plot([], [], 'b-')
+        self.line3z, = self.ax3.plot([], [], 'r--')
 
     def add_data_point(self, x, y, z):
         self.x_data.append(x)
         self.y_data.append(y)
         self.z_data.append(z)
+
+    def add_measurement_point(self, x, y, z):
+        self.x_data_z.append(x)
+        self.y_data_z.append(y)
+        self.z_data_z.append(z)
+
+    def final_plot(self):
+        self.line1.set_data(range(len(self.x_data)), self.x_data)
+        self.line1z.set_data(range(len(self.x_data_z)), self.x_data_z)
+        self.ax1.relim()
+        self.ax1.autoscale_view()
+        
+        self.line2.set_data(range(len(self.y_data)), self.y_data)
+        self.line2z.set_data(range(len(self.y_data_z)), self.y_data_z)
+        self.ax2.relim()
+        self.ax2.autoscale_view()
+        
+        self.line3.set_data(range(len(self.z_data)), self.z_data)
+        self.line3z.set_data(range(len(self.z_data_z)), self.z_data_z)
+        self.ax3.relim()
+        self.ax3.autoscale_view()
+
+        plt.tight_layout()
+        plt.show()
     
     def update_graph(self, frame):
         self.line1.set_data(range(len(self.x_data)), self.x_data)
@@ -50,4 +82,3 @@ class PoseGraph:
         plt.tight_layout()
         plt.show(block = False)
         plt.pause(0.01)
-
