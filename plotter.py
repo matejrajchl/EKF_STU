@@ -14,7 +14,17 @@ class PoseGraph:
         self.y_data_z = []
         self.z_data_z = []
 
-        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(8, 10))
+        self.q1_data = []
+        self.q2_data = []
+        self.q3_data = []
+        self.q4_data = []
+
+        self.q1_data_z = []
+        self.q2_data_z = []
+        self.q3_data_z = []
+        self.q4_data_z = []
+
+        self.fig, (self.ax1, self.ax2, self.ax3, self.ax4, self.ax5, self.ax6, self.ax7) = plt.subplots(7, 1, figsize=(8, 10))
         self.line1, = self.ax1.plot([], [], 'b-')
         self.line1z, = self.ax1.plot([], [], 'r--')
         self.line2, = self.ax2.plot([], [], 'b-')
@@ -22,15 +32,34 @@ class PoseGraph:
         self.line3, = self.ax3.plot([], [], 'b-')
         self.line3z, = self.ax3.plot([], [], 'r--')
 
-    def add_data_point(self, x, y, z):
+        self.line4, = self.ax4.plot([], [], 'b-')
+        self.line4z, = self.ax4.plot([], [], 'r--')
+        self.line5, = self.ax5.plot([], [], 'b-')
+        self.line5z, = self.ax5.plot([], [], 'r--')
+        self.line6, = self.ax6.plot([], [], 'b-')
+        self.line6z, = self.ax6.plot([], [], 'r--')
+        self.line7, = self.ax7.plot([], [], 'b-')
+        self.line7z, = self.ax7.plot([], [], 'r--')
+
+    def add_data_point(self, x, y, z, q1,q2,q3,q4):
         self.x_data.append(x)
         self.y_data.append(y)
         self.z_data.append(z)
 
-    def add_measurement_point(self, x, y, z):
+        self.q1_data.append(q1)
+        self.q2_data.append(q2)
+        self.q3_data.append(q3)
+        self.q4_data.append(q4)
+
+    def add_measurement_point(self, x, y, z,q1,q2,q3,q4):
         self.x_data_z.append(x)
         self.y_data_z.append(y)
         self.z_data_z.append(z)
+
+        self.q1_data_z.append(q1)
+        self.q2_data_z.append(q2)
+        self.q3_data_z.append(q3)
+        self.q4_data_z.append(q4)
 
     def final_plot(self):
         self.line1.set_data(range(len(self.x_data)), self.x_data)
@@ -47,6 +76,26 @@ class PoseGraph:
         self.line3z.set_data(range(len(self.z_data_z)), self.z_data_z)
         self.ax3.relim()
         self.ax3.autoscale_view()
+
+        self.line4.set_data(range(len(self.q1_data)), self.q1_data)
+        self.line4z.set_data(range(len(self.q1_data_z)), self.q1_data_z)
+        self.ax4.relim()
+        self.ax4.autoscale_view()
+
+        self.line5.set_data(range(len(self.q2_data)), self.q2_data)
+        self.line5z.set_data(range(len(self.q2_data_z)), self.q2_data_z)
+        self.ax5.relim()
+        self.ax5.autoscale_view()
+
+        self.line6.set_data(range(len(self.q3_data)), self.q3_data)
+        self.line6z.set_data(range(len(self.q3_data_z)), self.q3_data_z)
+        self.ax6.relim()
+        self.ax6.autoscale_view()
+
+        self.line7.set_data(range(len(self.q4_data)), self.q4_data)
+        self.line7z.set_data(range(len(self.q4_data_z)), self.q4_data_z)
+        self.ax7.relim()
+        self.ax7.autoscale_view()
 
         plt.tight_layout()
         plt.show()
@@ -82,3 +131,4 @@ class PoseGraph:
         plt.tight_layout()
         plt.show(block = False)
         plt.pause(0.01)
+
