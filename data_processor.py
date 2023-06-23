@@ -13,41 +13,52 @@ class DataProcessor:
         self.last_update_time = None  # Timestamp of the last update step
 
         # Specify Noise Sigmas
-        self.N_g = np.array([1,1,1])*1e-8 # for gyroscope
-        self.N_a = np.array([1,1,1])*1e-8 # for accelerometer
-        self.N_bias_g = np.array([1,1,1])*1e-8  # for gyro bias
-        self.N_bias_a = np.array([1,1,1])*1e-8  # for accelerometer bias
+        self.N_g = np.array([1,1,1])*100 # for gyroscope
+        self.N_a = np.array([1,1,1])*100 # for accelerometer
+        self.N_bias_g = np.array([1,1,1])*100  # for gyro bias
+        self.N_bias_a = np.array([1,1,1])*100  # for accelerometer bias
         
         self.Q_t = np.diag(np.concatenate((self.N_g, self.N_a, self.N_bias_g, self.N_bias_a))) # Process noise
-        self.R_t = np.diag(np.concatenate((np.ones(3) * 1, np.ones(3) * 1))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
+        self.R_t = np.diag(np.concatenate((np.ones(3) * 1, np.ones(4) * 1))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
 
-        self.sigma_t_1 = np.diag(np.concatenate((np.zeros(3), self.N_g, self.N_a, self.N_bias_g, self.N_bias_a)))        # Define symbolic variables
+        self.sigma_t_1 = np.diag(np.concatenate((np.zeros(4), self.N_g, self.N_a, self.N_bias_g, self.N_bias_a)))        # Define symbolic variables
 
-        self.X = symbols('p1 p2 p3 q1 q2 q3 p_dot1 p_dot2 p_dot3 b_g1 b_g2 b_g3 b_a1 b_a2 b_a3')
+        self.X = symbols('p1 p2 p3 q1 q2 q3 q4 p_dot1 p_dot2 p_dot3 b_g1 b_g2 b_g3 b_a1 b_a2 b_a3')
         self.U = symbols('u1 u2 u3 u4 u5 u6')
         self.N = symbols('n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12')
-        self.V = symbols('v1 v2 v3 v4 v5 v6')
+        self.V = symbols('v1 v2 v3 v4 v5 v6 v7')
 
         # Define symbolic functions
-        G = Matrix([[cos(self.X[4]), 0, -cos(self.X[3])*sin(self.X[4])],
-                    [0, 1, sin(self.X[3])],
-                    [sin(self.X[4]), 0, cos(self.X[3])*cos(self.X[4])]])
+        #G = Matrix([[cos(self.X[4]), 0, -cos(self.X[3])*sin(self.X[4])],
+        #            [0, 1, sin(self.X[3])],
+        #            [sin(self.X[4]), 0, cos(self.X[3])*cos(self.X[4])]])
 
-        self.R = Matrix([[cos(self.X[5])*cos(self.X[4])-sin(self.X[3])*sin(self.X[5])*sin(self.X[4]), -cos(self.X[3])*sin(self.X[5]), cos(self.X[5])*sin(self.X[4])+cos(self.X[4])*sin(self.X[3])*sin(self.X[5])],
-                    [cos(self.X[4])*sin(self.X[5])+cos(self.X[5])*sin(self.X[3])*sin(self.X[4]), cos(self.X[3])*cos(self.X[5]), sin(self.X[5])*sin(self.X[4])-cos(self.X[5])*cos(self.X[4])*sin(self.X[3])],
-                    [-cos(self.X[3])*sin(self.X[4]), sin(self.X[3]), cos(self.X[3])*cos(self.X[4])]])
+        #self.R = Matrix([[cos(self.X[5])*cos(self.X[4])-sin(self.X[3])*sin(self.X[5])*sin(self.X[4]), -cos(self.X[3])*sin(self.X[5]), cos(self.X[5])*sin(self.X[4])+cos(self.X[4])*sin(self.X[3])*sin(self.X[5])],
+        #            [cos(self.X[4])*sin(self.X[5])+cos(self.X[5])*sin(self.X[3])*sin(self.X[4]), cos(self.X[3])*cos(self.X[5]), sin(self.X[5])*sin(self.X[4])-cos(self.X[5])*cos(self.X[4])*sin(self.X[3])],
+        #            [-cos(self.X[3])*sin(self.X[4]), sin(self.X[3]), cos(self.X[3])*cos(self.X[4])]])
 
-        Ginv = G.inv()
 
+        self.R = Matrix([[1-2*(self.X[5]**2 + self.X[6]**2), 2*(self.X[4]*self.X[5]-self.X[6]*self.X[3]), 2*(self.X[4]*self.X[6] + self.X[5]*self.X[3])],
+                    [2*(self.X[4]*self.X[5] + self.X[6]*self.X[3]), 1-2*(self.X[4]**2 + self.X[6]**2), 2*(self.X[5]*self.X[6] - self.X[4]*self.X[3])],
+                    [2*(self.X[4]*self.X[6] - self.X[5]*self.X[3]), 2*(self.X[5]*self.X[6] + self.X[4]*self.X[3]), 1-2*(self.X[4]**2 + self.X[5]**2)]])
+
+        #Ginv = G.inv()
+        omega = Matrix([[self.U[0]-self.X[10]-self.N[0]],
+                       [self.U[1]-self.X[11]-self.N[1]],
+                       [self.U[2]-self.X[12]-self.N[2]]])
+        Omega = Matrix([[0, -omega[0], -omega[1], -omega[2]],
+                        [omega[0], 0, omega[2], -omega[1]],
+                        [omega[1],-omega[2], 0, omega[0]],
+                        [omega[2], omega[1], -omega[0], 0]])
         # Define process model
-        self.process = Matrix([Matrix(self.X[6:9]),
-                               Ginv * (Matrix(self.U[0:3]) - Matrix(self.X[9:12]) - Matrix(self.N[0:3])),
-                               Matrix([0, 0, 10]) + self.R * (Matrix(self.U[3:6]) - Matrix(self.X[12:15]) - Matrix(self.N[3:6])),
+        self.process = Matrix([Matrix(self.X[7:10]),
+                               0.5*Omega*Matrix(self.X[3:7]),
+                               Matrix([0, 0, -9.81]) + self.R * (Matrix(self.U[3:6]) - Matrix(self.X[13:16]) - Matrix(self.N[3:6])),
                                Matrix(self.N[6:9]),
                                Matrix(self.N[9:12])])
 
         # Define measurement model
-        self.measurement = Matrix(self.X[0:6]) + Matrix(self.V[0:6])
+        self.measurement = Matrix(self.X[0:7]) + Matrix(self.V[0:7])
 
         # Convert tuples to matrices for Jacobian calculation
         X_mat = Matrix(self.X)
@@ -75,15 +86,15 @@ class DataProcessor:
         self.update_measurement_fn()
 
     def update_process_fn(self): 
-        self.process_fn = lambdify(self.X[0:15] + self.N[0:12] + self.U[0:6], self.process, modules='numpy')
-        self.A_fn = lambdify(self.X[0:15] + self.N[0:12] + self.U[0:6], self.A, modules='numpy')
-        self.B_fn = lambdify(self.X[0:15] + self.N[0:12] + self.U[0:6], self.B, modules='numpy')
-        self.U_t_fn = lambdify(self.X[0:15] + self.N[0:12] + self.U[0:6], self.U_t, modules='numpy')
+        self.process_fn = lambdify(self.X + self.N + self.U, self.process, modules='numpy')
+        self.A_fn = lambdify(self.X + self.N + self.U, self.A, modules='numpy')
+        self.B_fn = lambdify(self.X + self.N + self.U, self.B, modules='numpy')
+        self.U_t_fn = lambdify(self.X + self.N + self.U, self.U_t, modules='numpy')
 
     def update_measurement_fn(self):
-        self.measurement_fn = lambdify(self.X[0:15] + self.V[0:6], self.measurement, modules='numpy')
-        self.C_fn = lambdify(self.X[0:15] + self.V[0:6], self.C, modules='numpy')
-        self.W_fn = lambdify(self.X[0:15] + self.V[0:6], self.W, modules='numpy')
+        self.measurement_fn = lambdify(self.X + self.V, self.measurement, modules='numpy')
+        self.C_fn = lambdify(self.X + self.V, self.C, modules='numpy')
+        self.W_fn = lambdify(self.X + self.V, self.W, modules='numpy')
 
     def update_step(self, msg, t):
         # Extract input data for the update step
@@ -113,8 +124,8 @@ class DataProcessor:
 
         if time_elapsed.to_sec() <= 0.05:
             
-            C_t = self.C_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(6))))
-            W_t = self.W_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(6))))
+            C_t = self.C_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7))))
+            W_t = self.W_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7))))
             # Kalman gain calculation
 
             D_inv = np.linalg.inv(np.dot(np.dot(C_t,self.sigma_bar_t), C_t.T) + W_t * self.R_t * W_t.T)  # Must use np.dot to multiply not square matrices
@@ -124,10 +135,10 @@ class DataProcessor:
             # Update using measurement
             z = self.extract_measurement(msg)  # Extract measurement vector from the message
             
-            self.state = self.state_pred + K_t*(Matrix(z) - self.measurement_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(6)))))  # Residual
+            self.state = self.state_pred + K_t*(Matrix(z) - self.measurement_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7)))))  # Residual
         
             self.sigma_t = self.sigma_bar_t - np.dot(np.dot(K_t,C_t),self.sigma_bar_t)
-            
+            #print(K_t)
             self.state_pred = self.state
             self.sigma_t_1 = self.sigma_t
             self.updated_state_ready = False  # Reset the flag
@@ -145,7 +156,7 @@ class DataProcessor:
         # Extract input data for the update step
         # Replace with your own implementation
         #print(msg)
-        inputs = (msg.linear_acceleration.x,msg.linear_acceleration.y,msg.linear_acceleration.z,msg.angular_velocity.x,msg.angular_velocity.y,msg.angular_velocity.z)
+        inputs = (msg.angular_velocity.x,msg.angular_velocity.y,msg.angular_velocity.z,msg.linear_acceleration.x,msg.linear_acceleration.y,msg.linear_acceleration.z,)
         input_data = np.concatenate((list(self.state.T.tolist()[0]), np.zeros(12), inputs))  
         input_data = input_data.astype(float)
         return input_data
@@ -158,10 +169,10 @@ class DataProcessor:
         z = msg.pose.pose.orientation.z
         w = msg.pose.pose.orientation.w
 
-        roll = math.atan2(2 * (w*x + y*z), 1 - 2 * (x**2 + y**2))
-        pitch = math.asin(2 * (w*y - z*x))
-        yaw = math.atan2(2 * (w*z + x*y), 1 - 2 * (y**2 + z**2))
-        meas_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z, roll, pitch, yaw)
+        #roll = math.atan2(2 * (w*x + y*z), 1 - 2 * (x**2 + y**2))
+        #pitch = math.asin(2 * (w*y - z*x))
+        #yaw = math.atan2(2 * (w*z + x*y), 1 - 2 * (y**2 + z**2))
+        meas_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z, w, x, y, z)
         return meas_data
 
     def set_data_available_callback(self, callback):
