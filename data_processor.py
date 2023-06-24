@@ -168,12 +168,27 @@ class DataProcessor:
         y = msg.pose.pose.orientation.y
         z = msg.pose.pose.orientation.z
         w = msg.pose.pose.orientation.w
+ 
+        x, y, z, w = self.ensure_sign_stability(x, y, z, w)
 
-        #roll = math.atan2(2 * (w*x + y*z), 1 - 2 * (x**2 + y**2))
-        #pitch = math.asin(2 * (w*y - z*x))
-        #yaw = math.atan2(2 * (w*z + x*y), 1 - 2 * (y**2 + z**2))
         meas_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z, w, x, y, z)
         return meas_data
+    
+    def ensure_sign_stability(self, x, y, z, w):
+        # Ensure quaternion has unit magnitude
+        magnitude = (x ** 2 + y ** 2 + z ** 2 + w ** 2) ** 0.5
+        x /= magnitude
+        y /= magnitude
+        z /= magnitude
+        w /= magnitude
+
+        # Ensure quaternion sign stability
+        if w < 0:
+            x = -x
+            y = -y
+            z = -z
+            w = -w
+        return x, y, z, w
 
     def set_data_available_callback(self, callback):
         self.data_available_callback = callback
