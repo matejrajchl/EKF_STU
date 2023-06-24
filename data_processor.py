@@ -6,6 +6,12 @@ from time import time
 
 class DataProcessor:
     def __init__(self, initial_state, initial_covariance):
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.w = 1
+
+        self.i = 0 
         self.state = Matrix(initial_state)  # Initial state vector
         self.covariance = Matrix(initial_covariance)  # Initial covariance matrix
         self.updated_state_ready = False  # Flag to indicate if the updated state is ready
@@ -13,13 +19,13 @@ class DataProcessor:
         self.last_update_time = None  # Timestamp of the last update step
 
         # Specify Noise Sigmas
-        self.N_g = np.array([1,1,1])*100 # for gyroscope
-        self.N_a = np.array([1,1,1])*100 # for accelerometer
-        self.N_bias_g = np.array([1,1,1])*100  # for gyro bias
-        self.N_bias_a = np.array([1,1,1])*100  # for accelerometer bias
+        self.N_g = np.array([1,1,1])*1e-1 # for gyroscope
+        self.N_a = np.array([1,1,1])*1e-1 # for accelerometer
+        self.N_bias_g = np.array([1,1,1])*1  # for gyro bias
+        self.N_bias_a = np.array([1,1,1])*1  # for accelerometer bias
         
         self.Q_t = np.diag(np.concatenate((self.N_g, self.N_a, self.N_bias_g, self.N_bias_a))) # Process noise
-        self.R_t = np.diag(np.concatenate((np.ones(3) * 1, np.ones(4) * 1))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
+        self.R_t = np.diag(np.concatenate((np.ones(3) * 1e-2, np.ones(4) * 1e-2))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
 
         self.sigma_t_1 = np.diag(np.concatenate((np.zeros(4), self.N_g, self.N_a, self.N_bias_g, self.N_bias_a)))        # Define symbolic variables
 
@@ -127,13 +133,13 @@ class DataProcessor:
             C_t = self.C_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7))))
             W_t = self.W_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7))))
             # Kalman gain calculation
+            z, src = self.extract_measurement(msg)  # Extract measurement vector from the message
 
             D_inv = np.linalg.inv(np.dot(np.dot(C_t,self.sigma_bar_t), C_t.T) + W_t * self.R_t * W_t.T)  # Must use np.dot to multiply not square matrices
 
             K_t = np.dot(self.sigma_bar_t, np.dot(C_t.T,D_inv))
 
             # Update using measurement
-            z = self.extract_measurement(msg)  # Extract measurement vector from the message
             
             self.state = self.state_pred + K_t*(Matrix(z) - self.measurement_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7)))))  # Residual
         
@@ -144,7 +150,7 @@ class DataProcessor:
             self.updated_state_ready = False  # Reset the flag
 
             if self.data_available_callback is not None:
-                self.data_available_callback(self.state, z, t)  # Notify the callback that new data is available with the timestamp
+                self.data_available_callback(self.state, z, t.to_sec(), src)  # Notify the callback that new data is available with the timestamp
         else:
             print("Too late update:")
             print(time_elapsed)
@@ -161,6 +167,12 @@ class DataProcessor:
         input_data = input_data.astype(float)
         return input_data
     
+    def check_min(self, value, min_threshold = 0.01):
+        if value < min_threshold:
+            return min_threshold
+        else:
+            return value
+    
     def extract_measurement(self, msg):
         # Extract measurement vector from the message
         # Replace with your own implementation
@@ -168,11 +180,52 @@ class DataProcessor:
         y = msg.pose.pose.orientation.y
         z = msg.pose.pose.orientation.z
         w = msg.pose.pose.orientation.w
- 
-        x, y, z, w = self.ensure_sign_stability(x, y, z, w)
 
+        if msg.header.frame_id == 'ov9281_back_base_link_smooth':
+            src = 'back'
+        else:
+            src = 'front'
+
+        #print(src)
+        cov = math.sqrt(msg.pose.covariance[0]**2 + msg.pose.covariance[7]**2 + msg.pose.covariance[14]**2)
+        cov_q = math.sqrt(msg.pose.covariance[21]**2 + msg.pose.covariance[28]**2 + msg.pose.covariance[35]**2)
+        cov = self.check_min(cov)
+        cov_q = self.check_min(cov_q)
+
+        #print(cov)
+        self.i = self.i + 1
+        #if self.i>600 and src == 'front':
+        #    self.R_t[0][0] = 100
+        #    self.R_t[1][1] = 100
+        #    self.R_t[2][2] = 100
+        #    self.R_t[3][3] = 100
+        #    self.R_t[4][4] = 100
+        #    self.R_t[5][5] = 100
+        #    self.R_t[6][6] = 100
+        #    msg.pose.pose.position.x = msg.pose.pose.position.x + 1
+        #else:
+        self.R_t[0][0] = cov
+        self.R_t[1][1] = cov
+        self.R_t[2][2] = cov
+        self.R_t[3][3] = cov_q
+        self.R_t[4][4] = cov_q
+        self.R_t[5][5] = cov_q
+        self.R_t[6][6] = cov_q
+
+
+        #self.sigma_bar_t[0][0] = cov
+        #self.sigma_bar_t[1][1] = cov
+        #self.sigma_bar_t[2][2] = cov
+        #self.sigma_bar_t[3][3] = cov_q
+        #self.sigma_bar_t[4][4] = cov_q
+        #self.sigma_bar_t[5][5] = cov_q
+        #self.sigma_bar_t[6][6] = cov_q
+
+        x, y, z, w = self.ensure_sign_stability(x, y, z, w)
         meas_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z, w, x, y, z)
-        return meas_data
+        return meas_data, src 
+    
+
     
     def ensure_sign_stability(self, x, y, z, w):
         # Ensure quaternion has unit magnitude
@@ -188,6 +241,10 @@ class DataProcessor:
             y = -y
             z = -z
             w = -w
+        elif w == 0 and (x < 0 or y < 0 or z < 0):
+            x = -x
+            y = -y
+            z = -z
         return x, y, z, w
 
     def set_data_available_callback(self, callback):
