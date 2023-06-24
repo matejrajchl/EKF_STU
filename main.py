@@ -17,6 +17,7 @@ def data_available_callback(state,z,t):
 
 # Create an instance of the DataProcessor
 initial_state = [0] * 16  # Initial state vector
+initial_state[3] = 1
 initial_covariance = np.eye(16)  # Initial covariance matrix
 
 data_processor = DataProcessor(initial_state, initial_covariance)
