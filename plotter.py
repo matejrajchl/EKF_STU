@@ -156,7 +156,7 @@ class PoseGraph:
         self.ax3.set_title('Z Coordinate')
         self.ax3.set_xlabel('Sample')
         self.ax3.set_ylabel('Z')
-        self.ax1.legend([ 'ekf','front','back'])
+        self.ax1.legend([ 'EKF','front VO','back VO'])
 
 
         self.line4.set_data(range(len(self.q1_data)), self.q1_data)
@@ -165,7 +165,7 @@ class PoseGraph:
 
         self.ax4.relim()
         self.ax4.autoscale_view()
-        self.ax4.legend([ 'ekf','front','back'])
+        self.ax4.legend([ 'EKF','front VO','back VO'])
 
         self.line5.set_data(range(len(self.q2_data)), self.q2_data)
         self.line5z.set_data(range(len(self.q2_data_z)), self.q2_data_z)
@@ -185,19 +185,19 @@ class PoseGraph:
         self.ax7.relim()
         self.ax7.autoscale_view()
 
-        self.ax4.set_title('w')
+        self.ax4.set_title('quaternion w')
         self.ax4.set_xlabel('Sample')
         self.ax4.set_ylabel('w')
         
-        self.ax5.set_title('x')
+        self.ax5.set_title('quaternion x')
         self.ax5.set_xlabel('Sample')
         self.ax5.set_ylabel('x')
   
-        self.ax6.set_title('y')
+        self.ax6.set_title('quaternion y')
         self.ax6.set_xlabel('Sample')
         self.ax6.set_ylabel('y')      
         
-        self.ax7.set_title('z')
+        self.ax7.set_title('quaternion z')
         self.ax7.set_xlabel('Sample')
         self.ax7.set_ylabel('z')
         
@@ -272,16 +272,16 @@ class PoseGraph:
         self.ax10.relim()
         self.ax10.autoscale_view()
 
-        self.ax8.set_title('r')
+        self.ax8.set_title('Roll')
         self.ax8.set_xlabel('Sample')
         self.ax8.set_ylabel('deg')
         
-        self.ax9.set_title('p')
+        self.ax9.set_title('Pitch')
         self.ax9.set_xlabel('Sample')
         self.ax9.set_ylabel('deg')
         
-        self.ax10.set_title('y')
+        self.ax10.set_title('Yaw')
         self.ax10.set_xlabel('Sample')
         self.ax10.set_ylabel('deg')
-        self.ax8.legend([ 'ekf','front','back'])
+        self.ax8.legend([ 'EKF','front VO','back VO'])
 
