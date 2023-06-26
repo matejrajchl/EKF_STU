@@ -60,12 +60,12 @@ class DataProcessor:
                         [self.X[17],-self.X[18], 0, self.X[16]],
                         [self.X[18], self.X[17], -self.X[16], 0]])
         # Define process model
-        self.process = Matrix([Matrix(self.X[7:10]),
+        self.process = Matrix(self.X) + Matrix([Matrix(self.X[7:10]),
                                0.5*Omega*Matrix(self.X[3:7]),
                                Matrix([0, 0, -9.81]) + self.R * (Matrix(self.U[3:6]) - Matrix(self.X[13:16]) - Matrix(self.N[3:6])),
                                Matrix(self.N[6:9]),
                                Matrix(self.N[9:12]),
-                               Matrix(omega)]) 
+                               Matrix(omega)])*self.DT[0] 
 
         # Define measurement model
         #self.measurement = Matrix([self.X[7:10],self.X[3:7]]) + Matrix(self.V[0:7])
@@ -125,9 +125,9 @@ class DataProcessor:
 
         # Update the model based on the input data
         dt = (t - self.last_update_time).to_sec()
-        F_t = np.eye(len(self.state)) + self.A_fn(*self.input_data)*self.input_data[-1]
-        V_t = self.U_t_fn(*self.input_data)*self.input_data[-1]
-        self.state_pred = self.state  + self.process_fn(*self.input_data)*self.input_data[-1]  # Add process noise?
+        F_t = self.A_fn(*self.input_data)
+        V_t = self.U_t_fn(*self.input_data)
+        self.state_pred = self.process_fn(*self.input_data)  # Add process noise?
         self.sigma_bar_t = np.dot(np.dot(F_t,self.sigma_t_1),F_t.T) + np.dot(np.dot(V_t,self.Q_t), V_t.T) # Must use np.dot to multiply non square matrices
         self.updated_state_ready = True  # Set the flag to indicate that the updated state is ready
         self.last_update_time = t  # Update the timestamp of the last update step
