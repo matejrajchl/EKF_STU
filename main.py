@@ -4,7 +4,7 @@ from plotter import PoseGraph
 import numpy as np
 import sys
 
-def data_available_callback(state, z, t, src, plot_data):
+def data_available_callback(state, z, t, src, plot_data, input_data):
     # Process the updated state here
     #print("New data available:")
     #print("State:", state)
@@ -27,17 +27,17 @@ else:
 print("Experiment name is:", exp_name)
 
 pose_graph = PoseGraph(exp_name)
-last_z_f = [0] * 16
-last_z_f[3] = 1
+last_z_f = [0] * 19
+last_z_f[3] = 0
 
-last_z_b = [0] * 16
-last_z_b[3] = 1
+last_z_b = [0] * 19
+last_z_b[3] = 0
 
 
 # Create an instance of the DataProcessor
-initial_state = [0] * 16  # Initial state vector
+initial_state = [0] * 19  # Initial state vector
 initial_state[3] = 1
-initial_covariance = np.eye(16)  # Initial covariance matrix
+initial_covariance = np.eye(19)  # Initial covariance matrix
 
 data_processor = DataProcessor(initial_state, initial_covariance)
 data_processor.set_data_available_callback(data_available_callback)
