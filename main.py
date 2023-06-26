@@ -28,11 +28,10 @@ print("Experiment name is:", exp_name)
 
 pose_graph = PoseGraph(exp_name)
 last_z_f = [0] * 19
-last_z_f[3] = 0
+last_z_f[3] = 1
 
 last_z_b = [0] * 19
-last_z_b[3] = 0
-
+last_z_b[3] = 1
 
 # Create an instance of the DataProcessor
 initial_state = [0] * 19  # Initial state vector

@@ -21,13 +21,13 @@ class DataProcessor:
         self.last_update_time = None  # Timestamp of the last update step
 
         # Specify Noise Sigmas
-        self.N_g = np.array([1,1,1])*1e-4 # for gyroscope
-        self.N_a = np.array([1,1,1])*1 # for accelerometer
-        self.N_bias_g = np.array([1,1,1])*1  # for gyro bias
-        self.N_bias_a = np.array([1,1,1])*1  # for accelerometer bias
+        self.N_g = np.array([1,1,1])*1e-3 # for gyroscope
+        self.N_a = np.array([1,1,1])*1e-2 # for accelerometer
+        self.N_bias_g = np.array([1,1,1])*1e-2  # for gyro bias
+        self.N_bias_a = np.array([1,1,1])*1e-3  # for accelerometer bias
         
         self.Q_t = np.diag(np.concatenate((self.N_g, self.N_a, self.N_bias_g, self.N_bias_a))) # Process noise
-        self.R_t = np.diag(np.concatenate((np.ones(3) * 1, np.ones(3) * 1))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
+        self.R_t = np.diag(np.concatenate((np.ones(3) * 1e-2, np.ones(3) * 1e-3))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
 
         self.sigma_t_1 = np.diag(np.ones(19))        # Define symbolic variables
 
@@ -52,20 +52,20 @@ class DataProcessor:
                     [2*(self.X[4]*self.X[6] - self.X[5]*self.X[3]), 2*(self.X[5]*self.X[6] + self.X[4]*self.X[3]), 1-2*(self.X[4]**2 + self.X[5]**2)]])
 
         #Ginv = G.inv()
-        omega = Matrix([[self.U[0]-self.X[10]-self.N[0]],
-                       [self.U[1]-self.X[11]-self.N[1]],
-                       [self.U[2]-self.X[12]-self.N[2]]])
+        omega = Matrix([[self.U[0]-self.X[10]+self.N[0]],
+                       [self.U[1]-self.X[11]+self.N[1]],
+                       [self.U[2]-self.X[12]+self.N[2]]])
         Omega = Matrix([[0, -self.X[16], -self.X[17], -self.X[18]],
                         [self.X[16], 0, self.X[18], -self.X[17]],
                         [self.X[17],-self.X[18], 0, self.X[16]],
                         [self.X[18], self.X[17], -self.X[16], 0]])
         # Define process model
-        self.process = Matrix(self.X) + Matrix([Matrix(self.X[7:10]),
+        self.process = Matrix(Matrix(self.X[0:16]) + Matrix([Matrix(self.X[7:10]),
                                0.5*Omega*Matrix(self.X[3:7]),
                                Matrix([0, 0, -9.81]) + self.R * (Matrix(self.U[3:6]) - Matrix(self.X[13:16]) - Matrix(self.N[3:6])),
                                Matrix(self.N[6:9]),
-                               Matrix(self.N[9:12]),
-                               Matrix(omega)])*self.DT[0] 
+                               Matrix(self.N[9:12])])*self.DT[0]).col_join(
+                               Matrix(omega))
 
         # Define measurement model
         #self.measurement = Matrix([self.X[7:10],self.X[3:7]]) + Matrix(self.V[0:7])
@@ -279,7 +279,7 @@ class DataProcessor:
         #print(src)
         cov = math.sqrt(msg.pose.covariance[0]**2 + msg.pose.covariance[7]**2 + msg.pose.covariance[14]**2)
         cov_q = math.sqrt(msg.pose.covariance[21]**2 + msg.pose.covariance[28]**2 + msg.pose.covariance[35]**2)
-        cov = self.check_min(cov)
+        cov = self.check_min(cov, 0.05)
         cov_q = self.check_min(cov_q)
 
         #print(cov)
@@ -294,19 +294,15 @@ class DataProcessor:
         #    self.R_t[6][6] = 100
         #    msg.pose.pose.position.x = msg.pose.pose.position.x + 1
         #else:
-        #self.R_t[0][0] = cov
-        #self.R_t[1][1] = cov
-        #self.R_t[2][2] = cov
-        #self.R_t[3][3] = cov_q
-        #self.R_t[4][4] = cov_q
-        #self.R_t[5][5] = cov_q
-        #self.R_t[6][6] = cov_q
+        self.R_t[0][0] = cov
+        self.R_t[1][1] = cov
+        self.R_t[2][2] = cov
+        self.R_t[3][3] = cov_q
+        self.R_t[4][4] = cov_q
+        self.R_t[5][5] = cov_q
 
-
-        
-        
         meas_data = (dx, dy, dz, wx, wy, wz)
-        plot_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z,  wx, wy, wz, z)
+        plot_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z,  w, x, y, z)
         
         return meas_data, src, plot_data
     
