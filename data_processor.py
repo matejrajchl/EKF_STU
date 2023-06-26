@@ -25,7 +25,7 @@ class DataProcessor:
         self.N_bias_a = np.array([1,1,1])*1  # for accelerometer bias
         
         self.Q_t = np.diag(np.concatenate((self.N_g, self.N_a, self.N_bias_g, self.N_bias_a))) # Process noise
-        self.R_t = np.diag(np.concatenate((np.ones(3) * 1e-2, np.ones(4) * 1e-2))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
+        self.R_t = np.diag(np.concatenate((np.ones(3) * 1, np.ones(4) * 1e-2))) #  Measurement Noise: [position;roll_pitch_yaw;velocities];
 
         self.sigma_t_1 = np.diag(np.concatenate((np.zeros(4), self.N_g, self.N_a, self.N_bias_g, self.N_bias_a)))        # Define symbolic variables
 
@@ -64,8 +64,8 @@ class DataProcessor:
                                Matrix(self.N[9:12])])
 
         # Define measurement model
-        self.measurement = Matrix(self.X[0:7]) + Matrix(self.V[0:7])
-
+        #self.measurement = Matrix([self.X[7:10],self.X[3:7]]) + Matrix(self.V[0:7])
+        self.measurement = Matrix([self.X[7],self.X[8],self.X[9],self.X[3],self.X[4],self.X[5],self.X[6]]) + Matrix(self.V[0:7])
         # Convert tuples to matrices for Jacobian calculation
         X_mat = Matrix(self.X)
         U_mat = Matrix(self.U)
@@ -90,6 +90,10 @@ class DataProcessor:
     
         self.update_process_fn()
         self.update_measurement_fn()
+
+
+        self.msg_front = None
+        self.msg_back = None
 
     def update_process_fn(self): 
         self.process_fn = lambdify(self.X + self.N + self.U, self.process, modules='numpy')
@@ -133,7 +137,7 @@ class DataProcessor:
             C_t = self.C_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7))))
             W_t = self.W_fn(*np.concatenate((tuple(self.state_pred.T.tolist()[0]), np.zeros(7))))
             # Kalman gain calculation
-            z, src = self.extract_measurement(msg)  # Extract measurement vector from the message
+            z, src, plot_data = self.extract_measurement(msg)  # Extract measurement vector from the message
 
             D_inv = np.linalg.inv(np.dot(np.dot(C_t,self.sigma_bar_t), C_t.T) + W_t * self.R_t * W_t.T)  # Must use np.dot to multiply not square matrices
 
@@ -150,7 +154,7 @@ class DataProcessor:
             self.updated_state_ready = False  # Reset the flag
 
             if self.data_available_callback is not None:
-                self.data_available_callback(self.state, z, t.to_sec(), src)  # Notify the callback that new data is available with the timestamp
+                self.data_available_callback(self.state, z, t.to_sec(), src, plot_data)  # Notify the callback that new data is available with the timestamp
         else:
             print("Too late update:")
             print(time_elapsed)
@@ -181,10 +185,34 @@ class DataProcessor:
         z = msg.pose.pose.orientation.z
         w = msg.pose.pose.orientation.w
 
+
         if msg.header.frame_id == 'ov9281_back_base_link_smooth':
             src = 'back'
+            if self.msg_back is None: # First iteration
+                self.msg_back = msg
+                dx = 0.0
+                dy = 0.0
+                dz = 0.0
+            else:
+                dt = msg.header.stamp.to_sec() - self.msg_back.header.stamp.to_sec()
+                dx = (msg.pose.pose.position.x - self.msg_back.pose.pose.position.x)/dt
+                dy = (msg.pose.pose.position.y - self.msg_back.pose.pose.position.y)/dt
+                dz = (msg.pose.pose.position.z - self.msg_back.pose.pose.position.z)/dt
+                self.msg_back = msg
+            
         else:
             src = 'front'
+            if self.msg_front is None: # First iteration
+                self.msg_front = msg
+                dx = 0.0
+                dy = 0.0
+                dz = 0.0
+            else:
+                dt = msg.header.stamp.to_sec() - self.msg_front.header.stamp.to_sec()
+                dx = (msg.pose.pose.position.x - self.msg_front.pose.pose.position.x)/dt
+                dy = (msg.pose.pose.position.y - self.msg_front.pose.pose.position.y)/dt
+                dz = (msg.pose.pose.position.z - self.msg_front.pose.pose.position.z)/dt
+                self.msg_front = msg
 
         #print(src)
         cov = math.sqrt(msg.pose.covariance[0]**2 + msg.pose.covariance[7]**2 + msg.pose.covariance[14]**2)
@@ -213,28 +241,16 @@ class DataProcessor:
         self.R_t[6][6] = cov_q
 
 
-        #self.sigma_bar_t[0][0] = cov
-        #self.sigma_bar_t[1][1] = cov
-        #self.sigma_bar_t[2][2] = cov
-        #self.sigma_bar_t[3][3] = cov_q
-        #self.sigma_bar_t[4][4] = cov_q
-        #self.sigma_bar_t[5][5] = cov_q
-        #self.sigma_bar_t[6][6] = cov_q
-
+        
         x, y, z, w = self.ensure_sign_stability(x, y, z, w)
-        meas_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z, w, x, y, z)
-        return meas_data, src 
+        meas_data = (dx, dy, dz, w, x, y, z)
+        plot_data = (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z, w, x, y, z)
+        
+        return meas_data, src, plot_data
     
 
     
     def ensure_sign_stability(self, x, y, z, w):
-        # Ensure quaternion has unit magnitude
-        magnitude = (x ** 2 + y ** 2 + z ** 2 + w ** 2) ** 0.5
-        x /= magnitude
-        y /= magnitude
-        z /= magnitude
-        w /= magnitude
-
         # Ensure quaternion sign stability
         if w < 0:
             x = -x
@@ -245,6 +261,14 @@ class DataProcessor:
             x = -x
             y = -y
             z = -z
+            
+        # Ensure quaternion has unit magnitude
+        magnitude = (x ** 2 + y ** 2 + z ** 2 + w ** 2) ** 0.5
+        x /= magnitude
+        y /= magnitude
+        z /= magnitude
+        w /= magnitude
+        
         return x, y, z, w
 
     def set_data_available_callback(self, callback):

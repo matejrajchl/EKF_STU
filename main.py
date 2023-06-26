@@ -4,7 +4,7 @@ from plotter import PoseGraph
 import numpy as np
 import sys
 
-def data_available_callback(state, z, t,src):
+def data_available_callback(state, z, t, src, plot_data):
     # Process the updated state here
     #print("New data available:")
     #print("State:", state)
@@ -13,11 +13,11 @@ def data_available_callback(state, z, t,src):
     global last_z_f
 
     if src == 'front':
-        pose_graph.add_measurement_point(t, z, last_z_b, src)
-        last_z_f = z
+        pose_graph.add_measurement_point(t, plot_data, last_z_b, src)
+        last_z_f = plot_data
     elif src == 'back':
-        pose_graph.add_measurement_point(t, z, last_z_f, src)
-        last_z_b = z
+        pose_graph.add_measurement_point(t, plot_data, last_z_f, src)
+        last_z_b = plot_data
 
 if len(sys.argv) != 2:
     exp_name = 'default'
